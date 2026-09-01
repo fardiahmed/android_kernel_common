@@ -278,7 +278,7 @@ static int spacemit_pd_attach_dev(struct generic_pm_domain *genpd, struct device
 	 * this feature enable the device drivers to dynamically modify the power
 	 * module taken over by PM domain driver
 	 */
-	per_qos = (struct per_device_qos *)devm_kzalloc(dev, sizeof(struct per_device_qos), GFP_KERNEL);
+	per_qos = (struct per_device_qos *)devm_kzalloc(spd->gdev, sizeof(struct per_device_qos), GFP_KERNEL);
 	if (!per_qos) {
 		pr_err(" allocate per device qos error\n");
 		return -ENOMEM;
@@ -374,7 +374,7 @@ static void spacemit_pd_detach_dev(struct generic_pm_domain *genpd, struct devic
 	dev_pm_qos_remove_request(&pos->req);
 	dev_pm_qos_remove_notifier(dev, &pos->notifier, DEV_PM_QOS_MAX_FREQUENCY);
 	list_del(&pos->qos_node);
-	devm_kfree(dev, pos);
+	devm_kfree(spd->gdev, pos);
 }
 
 static int spacemit_genpd_stop(struct device *dev)
