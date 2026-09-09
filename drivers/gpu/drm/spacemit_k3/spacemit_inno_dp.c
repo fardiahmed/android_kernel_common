@@ -2098,7 +2098,33 @@ static enum drm_connector_status soc_dp_conn_detect(struct drm_connector *connec
 	enum drm_connector_status status;
 
 	mutex_lock(&dp->mode_lock);
-	status = dp->connector_status;
+
+	if (dp->edp_mode) {
+		/* HPD_IN_STATUS does not read meaningfully on the eDP path. */
+		status = dp->connector_status;
+		mutex_unlock(&dp->mode_lock);
+		return status;
+	}
+
+	/*
+	 * Read the level register live rather than reporting whatever the poll
+	 * work last cached: the HPD interrupt is gated by the DP pixel clock,
+	 * which is off exactly when a plug has to be caught.
+	 */
+	status = soc_dp_hw_detect_hpd(dp);
+
+	/*
+	 * The bind-time capability read only covers a sink that was already
+	 * there. Without a re-read here link.max_rate stays stale, and the
+	 * first filter in soc_dp_encoder_enable() then rejects every entry of
+	 * the link priority table.
+	 */
+	if (status == connector_status_connected &&
+	    dp->connector_status != connector_status_connected)
+		soc_dp_hw_read_sink_caps(dp);
+
+	dp->connector_status = status;
+
 	mutex_unlock(&dp->mode_lock);
 
 	return status;
