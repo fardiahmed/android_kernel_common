@@ -1149,6 +1149,20 @@
 		};
 
 		/*
+		 * RCPU bus clock controller, on the same RCPU AXI island as
+		 * syscon_rcpu_i2sctrl above (hence the same island clock).
+		 * Only the AXI and APB dividers are described: they are the
+		 * parents of the RCPU I2SCTRL "bus" gates.  Nothing on this
+		 * island is reset from Linux, so no #reset-cells.
+		 */
+		syscon_rpmu: system-controller@c088c000 {
+			compatible = "spacemit,k3-syscon-rpmu";
+			reg = <0x0 0xc088c000 0x0 0x800>;
+			clocks = <&syscon_apmu CLK_APMU_RCPU>;
+			#clock-cells = <1>;
+		};
+
+		/*
 		 * Display pipeline (ported from the vendor K3 BSP linux-6.18).
 		 *
 		 * The K3 has two independent display paths, both driven by the
