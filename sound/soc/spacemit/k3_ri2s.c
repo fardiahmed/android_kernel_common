@@ -87,9 +87,7 @@ struct spacemit_i2s_dev {
 	struct device *dev;
 	void __iomem *base;
 
-	dma_addr_t alloc_dma_addr;
-	unsigned char *alloc_dma_area;
-	unsigned long alloc_dma_size;
+	struct snd_dma_buffer sram_buf[SNDRV_PCM_STREAM_LAST + 1];
 
 	dma_addr_t buf_addr;
 	unsigned long buf_size;
@@ -133,7 +131,14 @@ static const struct snd_dmaengine_pcm_config spacemit_dmaengine_pcm_config = {
 	.pcm_hardware = &spacemit_pcm_hardware,
 	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
 	.chan_names = {"tx", "rx"},
-	.prealloc_buffer_size = SPACEMIT_PCM_BUFFER_BYTES_MAX,
+	/*
+	 * No preallocation: the ADMA descriptor carries 32-bit addresses
+	 * (struct adma_desc_hw) and this SoC has no DRAM below 4 GiB, so a
+	 * dma_alloc_coherent() for the PCM buffer can never succeed.  The
+	 * buffer is the I2S SRAM window instead, handed to the core in
+	 * hw_params below.
+	 */
+	.prealloc_buffer_size = 0,
 };
 
 static int spacemit_i2s_startup(struct snd_pcm_substream *substream,
@@ -179,6 +184,13 @@ static int spacemit_i2s_startup(struct snd_pcm_substream *substream,
 				     SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				     buf_size / 8, buf_size / 4);
 
+	/*
+	 * The generic dmaengine PCM declared the buffer as managed, which
+	 * makes snd_pcm_hw_params() allocate one from DRAM.  This driver
+	 * supplies the SRAM window itself, so opt out.
+	 */
+	substream->managed_buffer_alloc = 0;
+
 	return 0;
 }
 
@@ -189,11 +201,12 @@ static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct spacemit_i2s_dev *i2s = snd_soc_dai_get_drvdata(dai);
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_dma_buffer *dmab;
 	u32 data_width, data_bits;
 	u32 slot_width = 0, slot_bits = 0;
 	u32 sp_reg_offset = 0, sp_reg_val = 0;
 	u32 ctrl_reg_offset = 0, ctrl_reg_val = 0;
-	u32 buf_size = 0;
+	u32 buf_size = 0, offset;
 	unsigned long bclk_rate;
 	int ret;
 
@@ -307,21 +320,28 @@ static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	i2s->alloc_dma_addr = substream->dma_buffer.addr;
-	i2s->alloc_dma_area = substream->dma_buffer.area;
-	i2s->alloc_dma_size = substream->dma_buffer.bytes;
+	dmab = &i2s->sram_buf[substream->stream];
 
 	if (rtd->dai_link->playback_only || rtd->dai_link->capture_only) {
 		buf_size = i2s->buf_size;
-		substream->dma_buffer.addr = (dma_addr_t)(i2s->buf_addr);
-		substream->dma_buffer.area = (void *)(i2s->buf_base);
+		offset = 0;
 	} else {
 		buf_size = i2s->buf_size / 2;
-		substream->dma_buffer.addr = (dma_addr_t)(i2s->buf_addr + substream->stream * buf_size);
-		substream->dma_buffer.area = (void *)(i2s->buf_base + substream->stream * buf_size);
+		offset = substream->stream * buf_size;
 	}
-	substream->dma_buffer.bytes = buf_size;
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
+
+	/*
+	 * SNDRV_DMA_TYPE_UNKNOWN leaves the buffer entirely to this driver:
+	 * substream->dma_buffer stays empty, so the unconditional
+	 * snd_pcm_lib_preallocate_free_for_all() at PCM teardown has nothing
+	 * to release.
+	 */
+	dmab->dev.type = SNDRV_DMA_TYPE_UNKNOWN;
+	dmab->dev.dev = i2s->dev;
+	dmab->addr = i2s->buf_addr + offset;
+	dmab->area = (void *)(i2s->buf_base + offset);
+	dmab->bytes = buf_size;
+	snd_pcm_set_runtime_buffer(substream, dmab);
 
 	return 0;
 }
@@ -329,11 +349,7 @@ static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
 static int spacemit_i2s_hw_free(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
-	struct spacemit_i2s_dev *i2s = snd_soc_dai_get_drvdata(dai);
-
-	substream->dma_buffer.addr = i2s->alloc_dma_addr;
-	substream->dma_buffer.area = i2s->alloc_dma_area;
-	substream->dma_buffer.bytes = i2s->alloc_dma_size;
+	snd_pcm_set_runtime_buffer(substream, NULL);
 	return 0;
 }
 
