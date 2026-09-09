@@ -425,7 +425,14 @@ static void set_ctrl_reg(struct adma_pchan *phy)
 	}
 
 	ctrl_reg_val |= ADMA_UNPACK_SAMPLES;
-	ctrl_reg_val |= ADMA_CH_ABORT;
+
+	/*
+	 * ABR is not a configuration bit: the K3 manual defines DCR[20] as
+	 * "Channel Abort -- when software sets this bit to 1, the DMA aborts
+	 * the transfer". Including it in the value written just before the
+	 * channel is enabled asks the engine to abort the transfer it is about
+	 * to start.
+	 */
 
 	adma_ch_write_reg(phy, DCR, ctrl_reg_val);
 }
