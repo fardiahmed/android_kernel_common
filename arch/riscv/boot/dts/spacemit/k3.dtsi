@@ -2048,6 +2048,13 @@
 			};
 
 			simple-audio-card,codec {
+				/*
+				 * The inno-dp ASoC codec declares playback only.
+				 * Saying so here also hands the whole ri2s3 SRAM
+				 * window to the playback stream instead of half,
+				 * which is what makes a 4096-frame buffer fit.
+				 */
+				playback-only;
 				sound-dai = <&dp1>;
 			};
 		};
