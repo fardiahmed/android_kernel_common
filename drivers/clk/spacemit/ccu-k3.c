@@ -1598,6 +1598,16 @@ static const struct spacemit_ccu_data k3_ccu_dciu_data = {
 	.num		= ARRAY_SIZE(k3_ccu_dciu_hws),
 };
 
+static struct clk_hw *k3_ccu_rpmu_hws[] = {
+	[CLK_RPMU_RCPU_AXI]		= &rcpu_axi_clk.common.hw,
+	[CLK_RPMU_RCPU_APB]		= &rcpu_apb_clk.common.hw,
+};
+
+static const struct spacemit_ccu_data k3_ccu_rpmu_data = {
+	.hws		= k3_ccu_rpmu_hws,
+	.num		= ARRAY_SIZE(k3_ccu_rpmu_hws),
+};
+
 static struct clk_hw *k3_ccu_rcpu_i2sctrl_hws[] = {
 	[CLK_RCPU_I2SCTRL_RI2S0]	= &ri2s0_clk.common.hw,
 	[CLK_RCPU_I2SCTRL_RI2S1]	= &ri2s1_clk.common.hw,
@@ -1643,6 +1653,10 @@ static const struct of_device_id of_k3_ccu_match[] = {
 		.data		= &k3_ccu_dciu_data,
 	},
 	{
+		.compatible	= "spacemit,k3-syscon-rpmu",
+		.data		= &k3_ccu_rpmu_data,
+	},
+	{
 		.compatible	= "spacemit,k3-syscon-rcpu-i2sctrl",
 		.data		= &k3_ccu_rcpu_i2sctrl_data,
 	},
@@ -1677,6 +1691,7 @@ enum k3_ccu_block_id {
 	K3_CCU_APBC2,
 	K3_CCU_APMU,
 	K3_CCU_DCIU,
+	K3_CCU_RPMU,
 	K3_CCU_RCPU_I2SCTRL,
 };
 
@@ -1692,12 +1707,15 @@ static const struct k3_ccu_block {
 	{ &k3_ccu_apmu_data,	K3_CCU_APMU,	BIT(K3_CCU_PLL) | BIT(K3_CCU_MPMU) },
 	{ &k3_ccu_dciu_data,	K3_CCU_DCIU,	BIT(K3_CCU_APMU) },
 	/*
-	 * The RCPU I2S control registers sit on the RCPU AXI island, behind a
-	 * bus clock the APMU provides, so this block cannot be touched before
-	 * the APMU one has registered.
+	 * Both RCPU register blocks sit on the RCPU AXI island, behind a bus
+	 * clock the APMU provides, so neither can be touched before the APMU
+	 * one has registered.  The I2S bus gates are children of the RCPU APB
+	 * divider the RPMU block owns, so that one has to come first too.
 	 */
-	{ &k3_ccu_rcpu_i2sctrl_data, K3_CCU_RCPU_I2SCTRL,
+	{ &k3_ccu_rpmu_data,	K3_CCU_RPMU,
 	  BIT(K3_CCU_PLL) | BIT(K3_CCU_APMU) },
+	{ &k3_ccu_rcpu_i2sctrl_data, K3_CCU_RCPU_I2SCTRL,
+	  BIT(K3_CCU_PLL) | BIT(K3_CCU_APMU) | BIT(K3_CCU_RPMU) },
 };
 
 static unsigned long k3_ccu_registered_blocks;
@@ -1725,7 +1743,7 @@ static int k3_ccu_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Most blocks are always reachable, but one lives behind a bus clock
+	 * Most blocks are always reachable, but some live behind a bus clock
 	 * that another controller owns.  Enable it, if the node names one,
 	 * before anything reads a register here.
 	 */
