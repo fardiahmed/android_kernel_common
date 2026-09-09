@@ -422,4 +422,8 @@
 #define CLK_RCPU_I2SCTRL_RI2S2_SYSCLK 8
 #define CLK_RCPU_I2SCTRL_RI2S3_SYSCLK 9
 
+/* RPMU clocks (syscon_rpmu@0xc088c000) */
+#define CLK_RPMU_RCPU_AXI             0
+#define CLK_RPMU_RCPU_APB             1
+
 #endif /* _DT_BINDINGS_CLOCK_SPACEMIT_K3_CLOCKS_H_ */
