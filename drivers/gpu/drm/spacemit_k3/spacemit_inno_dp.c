@@ -2593,39 +2593,18 @@ static void soc_dp_hpd_poll_work(struct work_struct *work)
 		mutex_unlock(&dp->mode_lock);
 		DRM_INFO("%s() hot plug event\n", __func__);
 		drm_kms_helper_hotplug_event(dp->drm);
-
-#if IS_ENABLED(CONFIG_SND_SOC)
-		if (!dp->edp_mode) {
-			if (dp->connector_status == connector_status_connected) {
-				if (inno_dp_audio_register(dp->dev))
-					DRM_INFO("%s() failed to register dp audio component\n", __func__);
-				else
-					dp->aud_registered = true;
-			} else {
-				inno_dp_audio_unregister(dp->dev);
-				dp->aud_registered = false;
-			}
-		}
-#endif
 	} else {
 		mutex_unlock(&dp->mode_lock);
-#if IS_ENABLED(CONFIG_SND_SOC)
-		if (!dp->edp_mode) {
-			if (dp->aud_registered && new_status == connector_status_disconnected) {
-				if (dp->card_instantiated) {
-					inno_dp_audio_unregister(dp->dev);
-					dp->aud_registered = false;
-				}
-			} else if (!dp->aud_registered && new_status == connector_status_connected) {
-				if (inno_dp_audio_register(dp->dev))
-					DRM_INFO("%s() failed to register dp audio component\n", __func__);
-				else
-					dp->aud_registered = true;
-			}
-		}
 	}
-#endif
 
+	/*
+	 * The ASoC component is deliberately not torn down here. It is
+	 * registered at bind and released at unbind; unregistering it from this
+	 * work deadlocks the moment userspace has the card open, because
+	 * snd_card_disconnect_sync() then waits for a release that only comes
+	 * once the poll work returns -- which it never does. Hotplug reaches
+	 * userspace through the DRM connector above.
+	 */
 	schedule_delayed_work(&dp->hpd_work, msecs_to_jiffies(interval_ms));
 }
 #else
