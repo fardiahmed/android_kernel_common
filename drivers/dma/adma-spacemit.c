@@ -13,7 +13,6 @@
 #include <linux/dmaengine.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
-#include <linux/dmapool.h>
 #include <linux/genalloc.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
@@ -94,7 +93,6 @@ struct adma_desc_sw {
 	struct list_head node;
 	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
-	dma_addr_t dma_addr;
 };
 
 struct adma_pchan;
@@ -116,7 +114,6 @@ struct adma_ch {
 	struct list_head chain_running;
 	enum dma_status	status;
 
-	struct dma_pool *sw_desc_pool;
 	struct gen_pool *hw_desc_pool;
 	bool init;
 };
@@ -188,20 +185,9 @@ static int adma_alloc_chan_resources(struct dma_chan *dchan)
 	struct adma_dev *adev = to_adma_dev(achan->chan.device);
 	u32 buf_offset = 0;
 
-	achan->sw_desc_pool = dma_pool_create(dev_name(&dchan->dev->device),
-					      achan->dev,
-					      sizeof(struct adma_desc_sw),
-					      __alignof__(struct adma_desc_sw),
-					      0);
-	if (!achan->sw_desc_pool) {
-		dev_err(achan->dev, "unable to allocate sw desc pool\n");
-		return -ENOMEM;
-	}
-
 	achan->hw_desc_pool = gen_pool_create(4, -1);
 	if (!achan->hw_desc_pool) {
 		pr_err("unable to allocate hw desc pool\n");
-		dma_pool_destroy(achan->sw_desc_pool);
 		return -ENOMEM;
 	}
 
@@ -213,7 +199,6 @@ static int adma_alloc_chan_resources(struct dma_chan *dchan)
 		-1) != 0) {
 		pr_err("gen_pool_add mem error!\n");
 		gen_pool_destroy(achan->hw_desc_pool);
-		dma_pool_destroy(achan->sw_desc_pool);
 		return -ENOMEM;
 	}
 
@@ -233,7 +218,7 @@ static void adma_free_desc_list(struct adma_ch *chan,
 		list_del(&desc->node);
 		desc->desc->nxt_desc = 0;
 		gen_pool_free(chan->hw_desc_pool, (long)desc->desc, sizeof(struct adma_desc_hw));
-		dma_pool_free(chan->sw_desc_pool, desc, desc->dma_addr);
+		kfree(desc);
 	}
 }
 
@@ -247,9 +232,7 @@ static void adma_free_chan_resources(struct dma_chan *dchan)
 	adma_free_desc_list(achan, &achan->chain_running);
 	spin_unlock_irqrestore(&achan->desc_lock, flags);
 	gen_pool_destroy(achan->hw_desc_pool);
-	dma_pool_destroy(achan->sw_desc_pool);
 	achan->hw_desc_pool = NULL;
-	achan->sw_desc_pool = NULL;
 	achan->status = DMA_COMPLETE;
 	achan->dir = 0;
 	achan->dev_addr = 0;
@@ -260,18 +243,15 @@ static struct adma_desc_sw *alloc_descriptor(struct adma_ch *achan)
 	struct adma_desc_sw *desc;
 	dma_addr_t pdesc;
 
-	desc = dma_pool_zalloc(achan->sw_desc_pool, GFP_ATOMIC, &pdesc);
-	if (!desc) {
-		dev_err(achan->dev, "can't alloc for sw descriptor\n");
+	desc = kzalloc(sizeof(*desc), GFP_ATOMIC);
+	if (!desc)
 		return NULL;
-	}
-	desc->dma_addr = pdesc;
 
 	desc->desc = (struct adma_desc_hw *)gen_pool_alloc(achan->hw_desc_pool,
 				sizeof(struct adma_desc_hw));
 	if (!desc->desc) {
 		dev_err(achan->dev, "can't alloc for hw descriptor\n");
-		dma_pool_free(achan->sw_desc_pool, desc, desc->dma_addr);
+		kfree(desc);
 		return NULL;
 	}
 
