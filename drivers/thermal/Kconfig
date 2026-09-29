@@ -316,7 +316,7 @@ config K3_THERMAL
 
 	  This includes temperature reading functionality.
 
-config K3_THERMAL
+config SPACEMIT_K3_THERMAL
 	tristate "Spacemit K3 Thermal Support"
 	depends on OF && ARCH_SPACEMIT
 	help

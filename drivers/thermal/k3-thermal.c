@@ -272,3 +272,6 @@ static struct platform_driver k3_thermal_driver = {
 };
 
 module_platform_driver(k3_thermal_driver);
+
+MODULE_DESCRIPTION("SpacemiT K3 thermal sensor driver");
+MODULE_LICENSE("GPL");

@@ -35,7 +35,8 @@ thermal_sys-$(CONFIG_DEVFREQ_THERMAL) += devfreq_cooling.o
 thermal_sys-$(CONFIG_PCIE_THERMAL) += pcie_cooling.o
 
 obj-$(CONFIG_K3_THERMAL)	+= k3_bandgap.o k3_j72xx_bandgap.o
-obj-$(CONFIG_K3_THERMAL)	+= k3-thermal.o
+# SpacemiT K3 (not TI K3: the vendor port reused the TI K3_THERMAL symbol)
+obj-$(CONFIG_SPACEMIT_K3_THERMAL)	+= k3-thermal.o
 # platform thermal drivers
 obj-y				+= broadcom/
 obj-$(CONFIG_THERMAL_MMIO)		+= thermal_mmio.o
