@@ -372,7 +372,8 @@ static void spacemit_rproc_shutdown(struct platform_device *pdev)
 	for (i = 0; i < MAX_MBOX; ++i) {
 		/* release the resource of rt thread */
 		if (priv->mb[i].kthread_running) {
-			if (!frozen((priv->mb[i].mb_thread)))
+			/* frozen() (kernel/freezer.c) is not exported to modules; same test inline */
+			if (!(READ_ONCE(priv->mb[i].mb_thread->__state) & TASK_FROZEN))
 				kthread_stop(priv->mb[i].mb_thread);
 		}
 		/* mbox_free_channel(priv->mb[i].chan); */
