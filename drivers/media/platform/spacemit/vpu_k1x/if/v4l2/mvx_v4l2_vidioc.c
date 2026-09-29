@@ -789,6 +789,8 @@ static int setup_vb2_queue(struct mvx_v4l2_port *vport)
 	q->dev = dev;
 #endif
 	q->ops = &mvx_vb2_ops;
+	/* vb2 requires q->lock now that wait_prepare/wait_finish are gone: the session mutex. */
+	q->lock = &vport->vsession->mutex;
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	q->allow_zero_bytesused = true;
