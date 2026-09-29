@@ -1820,11 +1820,44 @@ static uint32_t dpu_isr(struct spacemit_dpu *dpu)
 	return int_mask;
 }
 
+/* The composer outputs nothing unless layer 0 is enabled: park it as a transparent
+ * solid layer when no plane uses it (primary-only commits: recovery, bootsplash). */
+static void saturn_fill_unused_layer0(struct drm_crtc *crtc)
+{
+	struct spacemit_dpu *dpu = crtc_to_dpu(crtc);
+	struct spacemit_drm_private *priv = crtc->dev->dev_private;
+	struct spacemit_hw_device *hwdev = priv->hwdev;
+	const struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	u32 base = CMP_BASE_ADDR(dpu->dev_id);
+	struct drm_plane *plane;
+
+	drm_for_each_plane_mask(plane, crtc->dev, crtc->state->plane_mask)
+		if (to_spacemit_plane(plane)->hw_pid == 0)
+			return;
+
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_rect_ltopx, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_rect_ltopy, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_rect_rbotx, mode->hdisplay - 1);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_rect_rboty, mode->vdisplay - 1);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_color_key_en, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_blend_mode, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_alpha_sel, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_layer_alpha, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_solid_color_R, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_solid_color_G, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_solid_color_B, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_solid_color_A, 0);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_solid_en, 1);
+	dpu_write_reg(hwdev, CMPS_X_REG, base, m_nl0_en, 1);
+}
+
 static void dpu_run(struct drm_crtc *crtc,
 		    struct drm_crtc_state *old_state)
 {
 	struct spacemit_dpu *dpu = crtc_to_dpu(crtc);
 	trace_dpu_run(dpu->dev_id);
+
+	saturn_fill_unused_layer0(crtc);
 
 	/* config dpuctrl modules */
 	saturn_conf_dpuctrl(crtc, old_state);
