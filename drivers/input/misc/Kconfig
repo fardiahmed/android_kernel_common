@@ -659,6 +659,16 @@ config INPUT_PWM_VIBRA
 	  To compile this driver as a module, choose M here: the module will be
 	  called pwm-vibra.
 
+config INPUT_SPACEMIT_P1_PWRKEY
+	tristate "SpacemiT P1 PMIC power key"
+	depends on MFD_SIMPLE_MFD_I2C
+	help
+	  Say Y here to report the SpacemiT P1 (SPM8821) PMIC power button as
+	  a KEY_POWER input device.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called spacemit-p1-pwrkey.
+
 config INPUT_RK805_PWRKEY
 	tristate "Rockchip RK805 PMIC power key support"
 	depends on MFD_RK8XX
