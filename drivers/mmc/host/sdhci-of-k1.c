@@ -427,6 +427,10 @@ static int spacemit_sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
 		return 0;
 	}
 
+	/* The "default"/"uhs" pinctrl states are optional. */
+	if (!state)
+		return 0;
+
 	ret = pinctrl_select_state(sdhst->pinctrl, state);
 	if (ret) {
 		dev_warn(mmc_dev(mmc), "failed to select pinctrl state: %d\n", ret);
