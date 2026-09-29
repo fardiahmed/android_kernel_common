@@ -54,14 +54,17 @@ static int spacemit_p1_reboot_probe(struct platform_device *pdev)
 	if (!regmap)
 		return -ENODEV;
 
-	ret = devm_register_power_off_handler(dev, &spacemit_p1_pwroff_handler,
-					      regmap);
+	/* The I2C regmap sleeps: use the sleep-safe *_PREPARE sys-off modes. */
+	ret = devm_register_sys_off_handler(dev, SYS_OFF_MODE_POWER_OFF_PREPARE,
+					    SYS_OFF_PRIO_DEFAULT,
+					    spacemit_p1_pwroff_handler, regmap);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to register power off handler\n");
 
-	ret = devm_register_restart_handler(dev, spacemit_p1_restart_handler,
-					    regmap);
+	ret = devm_register_sys_off_handler(dev, SYS_OFF_MODE_RESTART_PREPARE,
+					    SYS_OFF_PRIO_DEFAULT,
+					    spacemit_p1_restart_handler, regmap);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to register restart handler\n");
