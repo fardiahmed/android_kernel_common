@@ -27,6 +27,11 @@ struct simple_mfd_data {
 	const struct regmap_config *regmap_config;
 	const struct mfd_cell *mfd_cell;
 	size_t mfd_cell_size;
+	/* Optional: regmap IRQ chip, registered when the device has an interrupt */
+	const struct regmap_irq_chip *irq_chip;
+	/* Cells that consume IRQ resources; only added if irq_chip came up */
+	const struct mfd_cell *irq_mfd_cell;
+	size_t irq_mfd_cell_size;
 };
 
 #endif /* __MFD_SIMPLE_MFD_I2C_H */

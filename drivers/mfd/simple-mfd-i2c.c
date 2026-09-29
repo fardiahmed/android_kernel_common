@@ -16,7 +16,9 @@
  */
 
 #include <linux/array_size.h>
+#include <linux/bits.h>
 #include <linux/dev_printk.h>
+#include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/mfd/core.h>
@@ -62,10 +64,32 @@ static int simple_mfd_i2c_probe(struct i2c_client *i2c)
 				   simple_mfd_data->mfd_cell,
 				   simple_mfd_data->mfd_cell_size,
 				   NULL, 0, NULL);
-	if (ret)
+	if (ret) {
 		dev_err(&i2c->dev, "Failed to add child devices\n");
+		return ret;
+	}
 
-	return ret;
+	if (simple_mfd_data->irq_chip && i2c->irq > 0) {
+		struct regmap_irq_chip_data *irq_data;
+
+		ret = devm_regmap_add_irq_chip(&i2c->dev, regmap, i2c->irq,
+					       IRQF_ONESHOT, 0,
+					       simple_mfd_data->irq_chip, &irq_data);
+		if (ret) {
+			/* IRQ consumers are optional; keep the core cells working. */
+			dev_warn(&i2c->dev, "Failed to add IRQ chip: %d\n", ret);
+			return 0;
+		}
+
+		ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO,
+					   simple_mfd_data->irq_mfd_cell,
+					   simple_mfd_data->irq_mfd_cell_size,
+					   NULL, 0, regmap_irq_get_domain(irq_data));
+		if (ret)
+			dev_warn(&i2c->dev, "Failed to add IRQ child devices: %d\n", ret);
+	}
+
+	return 0;
 }
 
 static const struct mfd_cell sy7636a_cells[] = {
@@ -109,10 +133,55 @@ static const struct mfd_cell spacemit_p1_cells[] = {
 	{ .name = "spacemit-p1-rtc", },
 };
 
+/* P1 (SPM8821) interrupts: status 0x91-0x97 (W1C), enable 0x98-0x9e; only the power key. */
+#define P1_IRQ_STATUS_BASE	0x91
+#define P1_IRQ_ENABLE_BASE	0x98
+
+enum {
+	P1_IRQ_PWRON_RISE,	/* power key released */
+	P1_IRQ_PWRON_FALL,	/* power key pressed */
+	P1_IRQ_PWRON_SHORT,
+	P1_IRQ_PWRON_LONG,
+};
+
+static const struct regmap_irq spacemit_p1_irqs[] = {
+	REGMAP_IRQ_REG(P1_IRQ_PWRON_RISE, 6, BIT(0)),
+	REGMAP_IRQ_REG(P1_IRQ_PWRON_FALL, 6, BIT(1)),
+	REGMAP_IRQ_REG(P1_IRQ_PWRON_SHORT, 6, BIT(2)),
+	REGMAP_IRQ_REG(P1_IRQ_PWRON_LONG, 6, BIT(3)),
+};
+
+static const struct regmap_irq_chip spacemit_p1_irq_chip = {
+	.name = "spacemit-p1",
+	.irqs = spacemit_p1_irqs,
+	.num_irqs = ARRAY_SIZE(spacemit_p1_irqs),
+	.num_regs = 7,
+	.status_base = P1_IRQ_STATUS_BASE,
+	.unmask_base = P1_IRQ_ENABLE_BASE,
+	.ack_base = P1_IRQ_STATUS_BASE,
+	.init_ack_masked = true,
+};
+
+static const struct resource spacemit_p1_pwrkey_resources[] = {
+	DEFINE_RES_IRQ_NAMED(P1_IRQ_PWRON_RISE, "rise"),
+	DEFINE_RES_IRQ_NAMED(P1_IRQ_PWRON_FALL, "fall"),
+};
+
+static const struct mfd_cell spacemit_p1_irq_cells[] = {
+	{
+		.name = "spacemit-p1-pwrkey",
+		.resources = spacemit_p1_pwrkey_resources,
+		.num_resources = ARRAY_SIZE(spacemit_p1_pwrkey_resources),
+	},
+};
+
 static const struct simple_mfd_data spacemit_p1 = {
 	.regmap_config = &spacemit_p1_regmap_config,
 	.mfd_cell = spacemit_p1_cells,
 	.mfd_cell_size = ARRAY_SIZE(spacemit_p1_cells),
+	.irq_chip = &spacemit_p1_irq_chip,
+	.irq_mfd_cell = spacemit_p1_irq_cells,
+	.irq_mfd_cell_size = ARRAY_SIZE(spacemit_p1_irq_cells),
 };
 
 static const struct of_device_id simple_mfd_i2c_of_match[] = {
