@@ -51,4 +51,6 @@ extern struct platform_driver spacemit_dsi_driver;
 int spacemit_wb_init(struct drm_device *drm, struct drm_crtc *crtc);
 void spacemit_wb_atomic_commit(struct drm_device *drm, struct drm_atomic_state *old_state);
 
+void spacemit_bootsplash_show(struct drm_device *drm);
+
 #endif /* _SPACEMIT_DRM_H_ */

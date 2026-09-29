@@ -4,6 +4,7 @@ config DRM_SPACEMIT
 	tristate "DRM Support for Spacemit"
 	depends on DRM && (ARCH_SPACEMIT || COMPILE_TEST)
 	select DRM_CLIENT_SELECTION
+	select DRM_CLIENT
 	select DRM_KMS_HELPER
 	select DRM_GEM_DMA_HELPER
 	select DRM_GEM_CMA_HELPER

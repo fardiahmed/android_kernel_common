@@ -11,6 +11,8 @@ spacemit-drm-y := 	spacemit_drm.o \
 				spacemit_gem.o \
 				spacemit_dmmu.o \
 				spacemit_bootloader.o \
+				spacemit_bootsplash.o \
+				spacemit_bootsplash_data.o \
 				sysfs/sysfs_class.o \
 				sysfs/sysfs_dpu.o \
 				sysfs/sysfs_dsi.o \
@@ -23,6 +25,9 @@ spacemit-drm-y := 	spacemit_drm.o \
 				dsi/spacemit_dptc_drv.o \
 				dphy/spacemit_dphy_drv.o
 
+
+AFLAGS_spacemit_bootsplash_data.o += \
+	-DSPACEMIT_BOOTSPLASH_RGB_PATH='"$(srctree)/drivers/gpu/drm/spacemit/spacemit_bootsplash.rgb"'
 
 obj-$(CONFIG_DRM_SPACEMIT) += spacemit-drm.o
 
