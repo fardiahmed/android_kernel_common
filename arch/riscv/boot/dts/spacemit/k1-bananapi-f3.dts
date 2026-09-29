@@ -128,6 +128,25 @@
 		VCC-supply = <&reg_vcc_4v>;
 	};
 
+	/* HDMI audio: the DMA interrupt goes to the RCPU, so the driver polls the position. */
+	hdmi_audio: audio-controller@c0883800 {
+		compatible = "spacemit,k1-hdmi-audio";
+		reg = <0x0 0xc0883800 0x0 0x100>,
+		      <0x0 0xc0883900 0x0 0x100>,
+		      <0x0 0xc08d0000 0x0 0x4000>,
+		      <0x0 0xc088c000 0x0 0x100>,
+		      <0x0 0xc0882000 0x0 0x60>,
+		      <0x0 0xc0400500 0x0 0x40>;
+		reg-names = "adma", "sspa", "sram", "bootc", "clkctl", "hdmi";
+		clocks = <&syscon_apmu CLK_AUDIO>, <&pll CLK_PLL1_D100_AUD>;
+		clock-names = "audio", "pll";
+		resets = <&syscon_apmu RESET_AUDIO_SYS>,
+			 <&syscon_apmu RESET_AUDIO_MCU>,
+			 <&syscon_apmu RESET_AUDIO_APMU>,
+			 <&syscon_rcpu RESET_RCPU_HDMI_AUDIO>;
+		reset-names = "sys", "mcu", "apmu", "hdmi";
+	};
+
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "BananaPi-F3-Audio";
