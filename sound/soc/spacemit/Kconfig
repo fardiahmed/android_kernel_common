@@ -12,6 +12,16 @@ config SND_SOC_K1_I2S
 	  K1 I2S controller. The device supports up to maximum of
 	  2 channels each for play and record.
 
+config SND_SOC_K1_HDMI_AUDIO
+	tristate "K1 HDMI audio"
+	depends on ARCH_SPACEMIT
+	depends on SPACEMIT_HDMI
+	help
+	  Say Y or M to add HDMI audio output on the SpacemiT K1. The audio
+	  DMA (ADMA) and SSPA transmitter are driven directly; the completion
+	  interrupt that the vendor stack forwards through the RCPU firmware
+	  is replaced by polling the DMA position.
+
 config SND_SOC_K3_RI2S
 	tristate "K3 RI2S Device Driver"
 	select SND_SOC_GENERIC_DMAENGINE_PCM

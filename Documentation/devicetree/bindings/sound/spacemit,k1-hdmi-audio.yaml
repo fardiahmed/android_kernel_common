@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/spacemit,k1-hdmi-audio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SpacemiT K1 HDMI audio
+
+maintainers:
+  - SpacemiT K1 audio maintainers <linux-riscv@lists.infradead.org>
+
+description:
+  HDMI audio output of the SpacemiT K1: an audio DMA (ADMA) feeding an SSPA
+  transmitter into the HDMI transmitter, with a dedicated SRAM for descriptors
+  and the sample ring. The DMA-finished interrupt is routed to the RCPU
+  coprocessor rather than to the application cores, so there is no interrupt
+  property and the driver polls the DMA position.
+
+properties:
+  compatible:
+    const: spacemit,k1-hdmi-audio
+
+  reg:
+    items:
+      - description: ADMA channel registers
+      - description: SSPA transmitter registers
+      - description: audio SRAM (descriptors and sample ring)
+      - description: RCPU boot controller (always-on peripheral clock/reset enable)
+      - description: RCPU syscon window holding the HDMI audio clock control
+      - description: HDMI transmitter registers used for audio enable and hot-plug state
+
+  reg-names:
+    items:
+      - const: adma
+      - const: sspa
+      - const: sram
+      - const: bootc
+      - const: clkctl
+      - const: hdmi
+
+  clocks:
+    items:
+      - description: audio subsystem clock
+      - description: 24.576MHz audio PLL output
+
+  clock-names:
+    items:
+      - const: audio
+      - const: pll
+
+  resets:
+    items:
+      - description: audio system reset
+      - description: audio MCU (RCPU core) reset
+      - description: audio APMU reset
+      - description: HDMI audio module reset
+
+  reset-names:
+    items:
+      - const: sys
+      - const: mcu
+      - const: apmu
+      - const: hdmi
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/spacemit,k1-syscon.h>
+
+    audio-controller@c0883800 {
+        compatible = "spacemit,k1-hdmi-audio";
+        reg = <0x0 0xc0883800 0x0 0x100>,
+              <0x0 0xc0883900 0x0 0x100>,
+              <0x0 0xc08d0000 0x0 0x4000>,
+              <0x0 0xc088c000 0x0 0x100>,
+              <0x0 0xc0882000 0x0 0x60>,
+              <0x0 0xc0400500 0x0 0x40>;
+        reg-names = "adma", "sspa", "sram", "bootc", "clkctl", "hdmi";
+        clocks = <&syscon_apmu CLK_AUDIO>, <&pll CLK_PLL1_D100_AUD>;
+        clock-names = "audio", "pll";
+        resets = <&syscon_apmu RESET_AUDIO_SYS>,
+                 <&syscon_apmu RESET_AUDIO_MCU>,
+                 <&syscon_apmu RESET_AUDIO_APMU>,
+                 <&syscon_rcpu RESET_RCPU_HDMI_AUDIO>;
+        reset-names = "sys", "mcu", "apmu", "hdmi";
+    };
