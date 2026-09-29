@@ -571,7 +571,7 @@ static void buf_finish(struct vb2_buffer *vb)
  *
  * This is unused for now and will be called from Vb2.
  */
-static void wait_prepare(struct vb2_queue *q)
+static void __maybe_unused wait_prepare(struct vb2_queue *q)
 {
 	struct mvx_v4l2_port *vport = vb2_get_drv_priv(q);
 	struct mvx_v4l2_session *vsession = vport->vsession;
@@ -590,7 +590,7 @@ static void wait_prepare(struct vb2_queue *q)
  *
  * This is unused for now and will be called from Vb2.
  */
-static void wait_finish(struct vb2_queue *q)
+static void __maybe_unused wait_finish(struct vb2_queue *q)
 {
 	struct mvx_v4l2_port *vport = vb2_get_drv_priv(q);
 	struct mvx_v4l2_session *vsession = vport->vsession;
@@ -619,8 +619,6 @@ const struct vb2_ops mvx_vb2_ops = {
 	.start_streaming = start_streaming,
 	.stop_streaming  = stop_streaming,
 	.buf_queue       = buf_queue,
-	.wait_prepare    = wait_prepare,
-	.wait_finish     = wait_finish
 };
 
 /**
@@ -641,6 +639,8 @@ static int setup_vb2_queue(struct mvx_v4l2_port *vport)
 	q->dev = dev;
 #endif
 	q->ops = &mvx_vb2_ops;
+	/* vb2 requires q->lock now that wait_prepare/wait_finish are gone: the session mutex. */
+	q->lock = &vport->vsession->mutex;
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	q->allow_zero_bytesused = true;

@@ -33,7 +33,6 @@
  * Includes
  ****************************************************************************/
 
-#include <asm-generic/memory_model.h>
 #include <linux/bitmap.h>
 #include <linux/debugfs.h>
 #include <linux/dma-buf.h>
@@ -42,6 +41,8 @@
 #include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
+/* after the linux/ headers: included first it defines ARCH_PFN_OFFSET before asm/page.h (as in vpu_k1x) */
+#include <asm-generic/memory_model.h>
 #include "mvx_mmu.h"
 #include "mvx_log_group.h"
 

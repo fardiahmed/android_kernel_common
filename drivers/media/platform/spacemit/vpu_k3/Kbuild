@@ -16,8 +16,9 @@ ccflags-y += $(EXTRA_CCFLAGS)
 # Define build targets and what files to include.
 ###########################################################
 
-# Amvx module
-obj-$(CONFIG_VIDEO_LINLON_K3) := amvx.o
+# Amvx module. Named amvx_k3 (not amvx): the K1 VPU driver (vpu_k1x) also builds amvx.ko, and a
+# kernel with both (the shared K1/K3 config) fails the duplicate module name check.
+obj-$(CONFIG_VIDEO_LINLON_K3) := amvx_k3.o
 
 # Add objects for if module.
 if-y := if/mvx_if.o \
@@ -50,7 +51,7 @@ dev-y := dev/mvx_dev.o \
 	 mvx_pm_runtime.o
 
 # Add driver objects.
-amvx-y := mvx_driver.o \
+amvx_k3-y := mvx_driver.o \
 	  mvx_seq.o \
 	  mvx_log.o \
 	  mvx_log_group.o \

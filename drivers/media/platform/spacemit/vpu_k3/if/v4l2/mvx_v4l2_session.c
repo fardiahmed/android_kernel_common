@@ -239,7 +239,7 @@ static void __v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *e
 	wake_up_all(&fh->wait);
 }
 
-void mvx_v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *ev)
+static void mvx_v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *ev)
 {
 	unsigned long flags;
 	u64 ts = ktime_get_ns();
@@ -248,7 +248,7 @@ void mvx_v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *ev)
 	__v4l2_event_queue_fh(fh, ev, ts);
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 }
-void mvx_vb2_queue_error(struct vb2_queue *q)
+static void mvx_vb2_queue_error(struct vb2_queue *q)
 {
 	q->error = 1;
 
