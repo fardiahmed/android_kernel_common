@@ -120,11 +120,26 @@
 		};
 	};
 
+	/* Speaker amplifier on the ES8326 headphone output, enabled by GPIO127. */
+	spk_amp: speaker-amplifier {
+		compatible = "simple-audio-amplifier";
+		sound-name-prefix = "Speaker Amp";
+		enable-gpios = <&gpio K1_GPIO(127) GPIO_ACTIVE_HIGH>;
+		VCC-supply = <&reg_vcc_4v>;
+	};
+
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "BananaPi-F3-Audio";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,aux-devs = <&spk_amp>;
+		simple-audio-card,widgets = "Speaker", "Speaker";
+		simple-audio-card,routing =
+			"Speaker Amp INL", "HPOL",
+			"Speaker Amp INR", "HPOR",
+			"Speaker", "Speaker Amp OUTL",
+			"Speaker", "Speaker Amp OUTR";
 
 		simple-audio-card,cpu {
 			sound-dai = <&sspa0>;
