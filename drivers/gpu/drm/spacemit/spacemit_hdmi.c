@@ -784,16 +784,16 @@ spacemit_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	if (hdmi_get_plug_in_status(hdmi)) {
 		mdelay(2);
 		if (hdmi_get_plug_in_status(hdmi)) {
-			DRM_INFO("%s() hdmi status connected\n", __func__);
+			DRM_DEBUG("%s() hdmi status connected\n", __func__);
 			spacemit_hdmi_notifier_call_chain(DRM_HDMI_EVENT_CONNECTED, "status");
 			status = connector_status_connected;
 		} else {
-			DRM_INFO("%s() hdmi status disconnected\n", __func__);
+			DRM_DEBUG("%s() hdmi status disconnected\n", __func__);
 			spacemit_hdmi_notifier_call_chain(DRM_HDMI_EVENT_DISCONNECTED, "status");
 			status = connector_status_disconnected;
 		}
 	} else {
-		DRM_INFO("%s() hdmi status disconnected\n", __func__);
+		DRM_DEBUG("%s() hdmi status disconnected\n", __func__);
 		spacemit_hdmi_notifier_call_chain(DRM_HDMI_EVENT_DISCONNECTED, "status");
 		status = connector_status_disconnected;
 	}
@@ -848,7 +848,7 @@ static int spacemit_hdmi_connector_get_modes(struct drm_connector *connector)
 
 	// Force using a default mode to avoid EDID issues
 	if (hdmi->use_no_edid || true) {
-		DRM_INFO("%s() using default mode 1920x1080\n", __func__);
+		DRM_DEBUG("%s() using default mode 1920x1080\n", __func__);
 		return drm_add_modes_noedid(connector, 1920, 1080);
 	}
 
