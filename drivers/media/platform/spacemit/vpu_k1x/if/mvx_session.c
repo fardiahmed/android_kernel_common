@@ -1749,8 +1749,9 @@ static int try_format(struct mvx_session *session,
 	*width = min_t(unsigned int, *width, 8192);
 	*height = min_t(unsigned int, *height, 8192);
 
-	/* Stream dimensions are dictated by the input port. */
-	if (dir == MVX_DIR_OUTPUT) {
+	/* Until the firmware has parsed the stream the input port is 0x0: keep the caller's size. */
+	if (dir == MVX_DIR_OUTPUT && session->port[MVX_DIR_INPUT].width != 0 &&
+	    session->port[MVX_DIR_INPUT].height != 0) {
 		*width = session->port[MVX_DIR_INPUT].width >> session->port[MVX_DIR_OUTPUT].scaling_shift;
 		*height = session->port[MVX_DIR_INPUT].height >> session->port[MVX_DIR_OUTPUT].scaling_shift;
 	}
