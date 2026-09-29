@@ -632,4 +632,16 @@
 			drive-strength = <32>;
 		};
 	};
+
+	/* I2C4 on the 26-pin header: pin 5 = SCL (GPIO_51), pin 3 = SDA (GPIO_52), 3.3 V */
+	/omit-if-no-ref/
+	i2c4_2_cfg: i2c4-2-cfg {
+		i2c4-2-pins {
+			pinmux = <K1_PADCONF(51, 4)>,	/* i2c4_scl */
+				 <K1_PADCONF(52, 4)>;	/* i2c4_sda */
+			bias-pull-up = <0>;
+			drive-strength = <21>;
+			power-source = <3300>;
+		};
+	};
 };

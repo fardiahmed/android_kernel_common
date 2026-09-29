@@ -16,6 +16,7 @@
 		ethernet1 = &eth1;
 		serial0 = &uart0;
 		i2c2 = &i2c2;
+		i2c4 = &i2c4;	/* header sensors: /dev/i2c-4 for the Sensors HAL */
 		i2c8 = &i2c8;
 	};
 
@@ -281,6 +282,33 @@
 			};
 		};
 	};
+};
+
+/* 26-pin header I2C4 (pin 3 SDA, pin 5 SCL) for sensor modules, 100 kHz for long wires. */
+&i2c4 {
+	pinctrl-0 = <&i2c4_2_cfg>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+	status = "okay";
+
+	/* AHT20 temperature + relative humidity (AHT20+BMP280 module) */
+	humidity-sensor@38 {
+		compatible = "aosong,aht20";
+		reg = <0x38>;
+	};
+
+	/* BMP280 pressure + temperature: 0x76 or 0x77 depending on the module's SDO strap */
+	pressure-sensor@76 {
+		compatible = "bosch,bmp280";
+		reg = <0x76>;
+	};
+
+	pressure-sensor@77 {
+		compatible = "bosch,bmp280";
+		reg = <0x77>;
+	};
+
+	/* GY-9250 IMU at 0x68: driven by the Sensors HAL over /dev/i2c-4. */
 };
 
 &i2c8 {
