@@ -21,6 +21,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <media/cec-notifier.h>
 
 #include "spacemit_hdmi.h"
 #include "spacemit_lib.h"
@@ -77,6 +78,11 @@ struct spacemit_hdmi {
 	bool use_no_edid;
 	struct hdmi_data_info *hdmi_data;
 	struct drm_display_mode previous_mode;
+
+	/* CEC runs on a separate cec-gpio adapter (DT hdmi-phandle); we only feed it the
+	 * physical address from the sink's EDID on plug/unplug. */
+	struct cec_notifier *cec_notifier;
+	bool cec_connected;
 };
 
 #define encoder_to_spacemit_hdmi(encoder) \
@@ -84,6 +90,8 @@ struct spacemit_hdmi {
 
 #define connector_to_spacemit_hdmi(connector) \
 	container_of(connector, struct spacemit_hdmi, connector)
+
+static void spacemit_hdmi_cec_update(struct spacemit_hdmi *hdmi, bool connected);
 
 static inline u32 hdmi_readb(struct spacemit_hdmi *hdmi, u16 offset)
 {
@@ -790,9 +798,43 @@ spacemit_hdmi_connector_detect(struct drm_connector *connector, bool force)
 		status = connector_status_disconnected;
 	}
 
+	spacemit_hdmi_cec_update(hdmi, status == connector_status_connected);
+
 	pm_runtime_put(hdmi->dev);
 
 	return status;
+}
+
+/* Pass the sink's physical address (EDID) to CEC; 1.0.0.0 if the read fails. */
+static void spacemit_hdmi_cec_update(struct spacemit_hdmi *hdmi, bool connected)
+{
+	u16 pa = CEC_PHYS_ADDR_INVALID;
+	u32 value;
+
+	if (!hdmi->cec_notifier || connected == hdmi->cec_connected)
+		return;
+	hdmi->cec_connected = connected;
+
+	if (!connected) {
+		cec_notifier_phys_addr_invalidate(hdmi->cec_notifier);
+		return;
+	}
+
+	value = hdmi_readb(hdmi, SPACEMIT_HDMI_PHY_STATUS);
+	value &= ~(SPACEMIT_HDMI_DDC_OTHER_MASK | SPACEMIT_HDMI_DDC_DONE_MASK);
+	value |= (SPACEMIT_HDMI_HPD_IQR | SPACEMIT_HDMI_DDC_DONE | SPACEMIT_HDMI_DDC_NACK);
+	hdmi_writeb(hdmi, SPACEMIT_HDMI_PHY_STATUS, value);
+	udelay(5);
+
+	hdmi_i2c_timing(hdmi);
+	if (edid_read(hdmi) == 0 && hdmi->edid_done)
+		pa = cec_get_edid_phys_addr(hdmi->hdmi_data->edid,
+					    sizeof(hdmi->hdmi_data->edid), NULL);
+	if (pa == CEC_PHYS_ADDR_INVALID) {
+		DRM_INFO("%s() no CEC physical address in EDID, assuming 1.0.0.0\n", __func__);
+		pa = 0x1000;
+	}
+	cec_notifier_set_phys_addr(hdmi->cec_notifier, pa);
 }
 
 static int spacemit_hdmi_connector_get_modes(struct drm_connector *connector)
@@ -999,6 +1041,15 @@ static int spacemit_hdmi_bind(struct device *dev, struct device *master,
 
 	ret = spacemit_hdmi_register(drm, hdmi);
 
+	{
+		struct cec_connector_info conn_info;
+
+		cec_fill_conn_info_from_drm(&conn_info, &hdmi->connector);
+		hdmi->cec_notifier = cec_notifier_conn_register(dev, NULL, &conn_info);
+		if (!hdmi->cec_notifier)
+			DRM_INFO("%s() CEC notifier unavailable, HDMI-CEC disabled\n", __func__);
+	}
+
 	ret = devm_request_threaded_irq(dev, irq, spacemit_hdmi_hardirq,
 					spacemit_hdmi_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
@@ -1008,6 +1059,7 @@ static int spacemit_hdmi_bind(struct device *dev, struct device *master,
 	return 0;
 
 irq_err:
+	cec_notifier_conn_unregister(hdmi->cec_notifier);
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
 
@@ -1023,6 +1075,7 @@ static void spacemit_hdmi_unbind(struct device *dev, struct device *master,
 
 	DRM_DEBUG("%s() \n", __func__);
 
+	cec_notifier_conn_unregister(hdmi->cec_notifier);
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
 
