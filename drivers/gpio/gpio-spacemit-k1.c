@@ -94,7 +94,7 @@ static irqreturn_t spacemit_gpio_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	for_each_set_bit(n, &pending, BITS_PER_LONG)
-		handle_nested_irq(irq_find_mapping(gb->chip.gc.irq.domain, n));
+		generic_handle_domain_irq(gb->chip.gc.irq.domain, n);
 
 	return IRQ_HANDLED;
 }
@@ -234,8 +234,8 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 	gc->of_gpio_n_cells	= 3;
 	gc->of_node_instance_match = spacemit_of_node_instance_match;
 
+	/* Regular (not nested-threaded) IRQs: hard IRQ consumers such as cec-gpio need them. */
 	girq			= &gc->irq;
-	girq->threaded		= true;
 	girq->handler		= handle_simple_irq;
 
 	gpio_irq_chip_set_chip(girq, &spacemit_gpio_chip);
@@ -249,10 +249,8 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 	spacemit_gpio_write(gb, SPACEMIT_GCRER, 0xffffffff);
 	spacemit_gpio_write(gb, SPACEMIT_GCFER, 0xffffffff);
 
-	ret = devm_request_threaded_irq(dev, irq, NULL,
-					spacemit_gpio_irq_handler,
-					IRQF_ONESHOT | IRQF_SHARED,
-					gb->chip.gc.label, gb);
+	ret = devm_request_irq(dev, irq, spacemit_gpio_irq_handler, IRQF_SHARED,
+			       gb->chip.gc.label, gb);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to register IRQ\n");
 
