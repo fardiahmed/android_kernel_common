@@ -485,8 +485,44 @@
 
 &hdmi {
 	pinctrl-names = "default";
-	pinctrl-0 = <&hdmi_0_cfg>;
+	pinctrl-0 = <&hdmi_0_nocec_cfg>;
 	status = "okay";
+};
+
+/* HDMI-CEC on GPIO_88 with cec-gpio (no driver for the HDMI controller's CEC block). */
+&pinctrl {
+	hdmi_0_nocec_cfg: hdmi-0-nocec-cfg {
+		hdmi-scl-sda-pins {
+			pinmux = <K1_PADCONF(86, 1)>,	/* hdmi_tx_hscl */
+				 <K1_PADCONF(87, 1)>;	/* hdmi_tx_hsda */
+			bias-pull-up = <0>;
+			drive-strength = <21>;
+		};
+
+		hdmi-hpd-pins {
+			pinmux = <K1_PADCONF(89, 1)>;	/* hdmi_tx_pdp */
+			bias-pull-down;
+			drive-strength = <21>;
+		};
+	};
+
+	hdmi_cec_gpio_cfg: hdmi-cec-gpio-cfg {
+		hdmi-cec-pins {
+			pinmux = <K1_PADCONF(88, 0)>;	/* GPIO_88 as GPIO */
+			bias-disable;
+			drive-strength = <21>;
+		};
+	};
+};
+
+/ {
+	hdmi_cec: hdmi-cec {
+		compatible = "cec-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_cec_gpio_cfg>;
+		cec-gpios = <&gpio K1_GPIO(88) (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		hdmi-phandle = <&hdmi>;
+	};
 };
 
 &sspa0 {
