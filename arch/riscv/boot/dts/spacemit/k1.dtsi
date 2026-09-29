@@ -1014,6 +1014,18 @@
 				status = "disabled";
 			};
 
+			/* VPU in multimedia-bus for its dma-ranges: amvx expects VPU-view DMA addresses. */
+			vpu: linlon-v5@c0500000 {
+				compatible = "arm china,linlon-v5";
+				reg = <0x0 0xc0500000 0x0 0x10000>;
+				interrupts = <74>;
+				clocks = <&syscon_apmu CLK_VPU>;
+				clock-names = "vpu_clk";
+				resets = <&syscon_apmu RESET_VPU>;
+				power-domains = <&power K1X_PMU_VPU_PWR_DOMAIN>;
+				status = "disabled";
+			};
+
 			/*
 			 * HDMI display pipeline restored from the 6.19 android DTS
 			 * (k1-hdmi.dtsi). Placed in multimedia-bus so the DPU/HDMI

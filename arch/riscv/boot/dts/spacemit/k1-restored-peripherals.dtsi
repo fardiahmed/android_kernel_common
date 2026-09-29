@@ -26,6 +26,19 @@ power: power-controller {
 		#power-domain-cells = <0>;
 	};
 
+	/* VPU power island (vendor k1-x.dtsi): without it amvx probe hung the bus. */
+	power-domain@1 {
+		reg = <0x1>;
+		pm_qos = <12>;
+		reg_pwr_ctrl = <0xa8>;
+		bit_sleep2 = <3>;
+		bit_sleep1 = <2>;
+		bit_isolation = <1>;
+		bit_pwr_stat = <1>;
+		bit_hw_pwr_stat = <9>;
+		#power-domain-cells = <0>;
+	};
+
 	power-domain@2 {
 		reg = <0x2>;
 		pm_qos = <12>;
@@ -273,15 +286,7 @@ cpp: cpp@c02f0000 {
 	status = "disabled";
 };
 
-vpu: linlon-v5@c0500000 {
-	compatible = "arm china,linlon-v5";
-	reg = <0x0 0xc0500000 0x0 0x10000>;
-	interrupts = <74>;
-	clocks = <&syscon_apmu CLK_VPU>;
-	clock-names = "vpu_clk";
-	resets = <&syscon_apmu RESET_VPU>;
-	status = "disabled";
-};
+/* vpu (linlon-v5@c0500000) lives in k1.dtsi's multimedia-bus for its dma-ranges. */
 
 thermal: thermal@d4018000 {
 	compatible = "spacemit,k1x-tsensor";
