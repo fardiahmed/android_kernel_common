@@ -135,6 +135,11 @@ struct spacemit_dpu {
 
 	bool is_1st_f;
 	bool logo_booton;
+
+	/* underrun storm guard, see dpu_underrun_storm_guard() */
+	unsigned long underrun_win_start;
+	unsigned int underrun_win_cnt;
+	bool underrun_masked;
 	struct dpu_clk_context clk_ctx;
 	uint64_t new_mclk;		/* new frame mclk */
 	uint64_t cur_mclk;		/* current frame mclk */

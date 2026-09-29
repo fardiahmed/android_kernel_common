@@ -1320,6 +1320,12 @@ static void saturn_irq_enable(struct spacemit_dpu *dpu, bool enable)
 
 	trace_saturn_irq_enable("irq", enable);
 
+	if (enable) {
+		dpu->underrun_masked = false;
+		dpu->underrun_win_cnt = 0;
+		dpu->underrun_win_start = jiffies;
+	}
+
 	if (dpu->dev_id == ONLINE2) {
 		/* enable online2 irq */
 		dpu_write_reg(hwdev, DPU_INTP_REG, base, b.onl2_nml_frm_timing_eof_int_msk, enable ? 1 : 0);
@@ -1674,6 +1680,31 @@ static void dpu_uninit(struct spacemit_dpu *dpu)
 	saturn_irq_enable(dpu, false);
 }
 
+/* Mask a flood of underrun interrupts (wedged pipeline) until the next CRTC enable. */
+#define DPU_UNDERRUN_STORM_WINDOW_MS	100
+#define DPU_UNDERRUN_STORM_LIMIT	200
+
+static bool dpu_underrun_storm_guard(struct spacemit_dpu *dpu,
+				     struct spacemit_hw_device *hwdev, u32 base)
+{
+	unsigned long now = jiffies;
+
+	if (time_after(now, dpu->underrun_win_start +
+			    msecs_to_jiffies(DPU_UNDERRUN_STORM_WINDOW_MS))) {
+		dpu->underrun_win_start = now;
+		dpu->underrun_win_cnt = 0;
+	}
+
+	if (++dpu->underrun_win_cnt < DPU_UNDERRUN_STORM_LIMIT)
+		return false;
+
+	dpu_write_reg(hwdev, DPU_INTP_REG, base, b.onl2_nml_frm_timing_unflow_int_msk, 0);
+	dpu->underrun_masked = true;
+	DRM_ERROR("DPU under run storm (>%d in %dms): masking the under run interrupt, display is not scanning out valid data\n",
+		  DPU_UNDERRUN_STORM_LIMIT, DPU_UNDERRUN_STORM_WINDOW_MS);
+	return true;
+}
+
 static uint32_t dpu_isr(struct spacemit_dpu *dpu)
 {
 	uint32_t irq_raw, int_mask = 0;
@@ -1699,6 +1730,8 @@ static uint32_t dpu_isr(struct spacemit_dpu *dpu)
 		/* underrun */
 		if (irq_raw & DPU_INT_FRM_TIMING_UNFLOW) {
 			dpu_write_reg_w1c(hwdev, DPU_INTP_REG, base, v.dpu_int_reg_14, DPU_INT_FRM_TIMING_UNFLOW);
+			if (dpu_underrun_storm_guard(dpu, hwdev, base))
+				return int_mask | DPU_INT_UNDERRUN;
 			trace_dpu_isr_status("Under Run!", irq_raw & DPU_INT_FRM_TIMING_UNFLOW);
 			trace_dpu_isr_ul_data("DPU Mclk", dpu->cur_mclk);
 			trace_dpu_isr_ul_data("DPU BW", dpu->cur_bw);
