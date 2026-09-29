@@ -599,6 +599,21 @@
 		};
 	};
 
+	/* sdhci1: on-board RTL8852BS Wi-Fi (SDIO, fixed 1.8V pads) */
+	/omit-if-no-ref/
+	mmc2_cfg: mmc2-cfg {
+		mmc2-pins {
+			pinmux = <K1_PADCONF(15, 1)>,	/* mmc2_data3 */
+				 <K1_PADCONF(16, 1)>,	/* mmc2_data2 */
+				 <K1_PADCONF(17, 1)>,	/* mmc2_data1 */
+				 <K1_PADCONF(18, 1)>,	/* mmc2_data0 */
+				 <K1_PADCONF(19, 1)>,	/* mmc2_cmd */
+				 <K1_PADCONF(20, 1)>;	/* mmc2_clk */
+			bias-pull-up = <0>;
+			drive-strength = <32>;
+		};
+	};
+
 	/* microSD (sdhci0) on the MMC1 pads 104-109 (was 52-57, which took I2C4_SDA). */
 	mmc1_cfg: mmc1-cfg {
 		mmc1-data-cmd-pins {

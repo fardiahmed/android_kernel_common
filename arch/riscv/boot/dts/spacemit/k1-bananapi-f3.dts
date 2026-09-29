@@ -42,6 +42,24 @@
 		regulator-always-on;
 	};
 
+	/* RTL8852BS supply switch (GPIO67) and Wi-Fi enable/reset (GPIO116). */
+	reg_wifi_bt_pwr: regulator-wifi-bt-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "wifi_bt_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio K1_GPIO(67) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <50000>;
+	};
+
+	wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio K1_GPIO(116) GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <100>;
+		power-off-delay-us = <10000>;
+	};
+
 	reg_dc_in: regulator-dc-in-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_in_12v";
@@ -389,6 +407,24 @@
 	status = "okay";
 };
 
+/* RTL8852BS Bluetooth (H5 over UART with hardware flow control) */
+&uart2 {
+	/* Nothing sets this UART clock before Linux: use the 48 MHz slow_uart2 source,
+	 * which also divides to the RTL8852B's 1.5/3 Mbaud. */
+	assigned-clocks = <&syscon_mpmu CLK_SLOW_UART2>, <&syscon_apbc CLK_UART2>;
+	assigned-clock-parents = <0>, <&syscon_mpmu CLK_SLOW_UART2>;
+	assigned-clock-rates = <48000000>, <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_0_cfg>, <&uart2_0_cts_rts_cfg>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "realtek,rtl8852bs-bt";
+		enable-gpios = <&gpio K1_GPIO(63) GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &usbphy2 {
 	status = "okay";
 };
@@ -573,6 +609,25 @@
 	cd-gpios = <&gpio K1_GPIO(80) GPIO_ACTIVE_LOW>;
 	no-mmc;
 	no-sdio;
+	status = "okay";
+};
+
+/* RTL8852BS Wi-Fi (SDIO), powered through the pwrseq; out-of-tree rtl8852bs driver. */
+&sdhci1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_cfg>;
+	bus-width = <4>;
+	/* Bring-up: below 100MHz the driver's (untested for SDIO) RX tuning is
+	 * skipped. Raise once the link is known good. */
+	max-frequency = <50000000>;
+	non-removable;
+	no-mmc;
+	no-sd;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	vmmc-supply = <&reg_wifi_bt_pwr>;
+	vqmmc-supply = <&buck3_1v8>;
 	status = "okay";
 };
 
