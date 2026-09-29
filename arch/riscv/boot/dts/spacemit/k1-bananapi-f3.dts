@@ -219,6 +219,10 @@
 		interrupt-parent = <&gpio>;
 		interrupts = <K1_GPIO(126) 1>;
 		#sound-dai-cells = <0>;
+		/* Self-powered on-board mics: a slow ADC ramp avoids the start-up pop. */
+		everest,adc-ramp-rate = /bits/ 8 <4>;
+		/* +18 dB digital mic gain: 0 dB recorded speech far too quietly */
+		everest,adc-pga-volume = /bits/ 8 <3>;
 	};
 
 	eeprom@50 {
