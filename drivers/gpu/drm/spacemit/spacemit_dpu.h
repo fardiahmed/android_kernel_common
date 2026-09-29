@@ -220,6 +220,8 @@ struct spacemit_plane {
 struct spacemit_plane_state {
 	struct drm_plane_state state;
 	u32 rdma_id;
+	/* rdma_id came from userspace (property); otherwise the driver assigns it per commit */
+	bool rdma_user_set;
 	u32 solid_color;
 	/*
 	 * scaler id. As long as its rdma channel is identical with any

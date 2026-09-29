@@ -130,6 +130,92 @@ static int spacemit_plane_atomic_check_scale_coefs (struct drm_plane *plane,
 	return 0;
 }
 
+static bool spacemit_rdma_can_read(const struct spacemit_hw_rdma *rdma,
+				   const struct drm_plane_state *ps)
+{
+	const struct drm_framebuffer *fb = ps->fb;
+	bool afbc = fb->modifier && fb->modifier != DRM_FORMAT_MOD_INVALID;
+
+	if (afbc)
+		return rdma->formats & FORMAT_AFBC;
+	if (fb->format->is_yuv)
+		return rdma->formats & FORMAT_RAW_YUV;
+	return rdma->formats & FORMAT_RGB;
+}
+
+/* Assign rdma channels to planes without a userspace rdma_id: YUV planes first (only some
+ * rdmas read raw YUV), then the rest, preferring rdma == zpos. */
+static u32 spacemit_plane_auto_rdma(struct drm_atomic_state *atomic_state,
+				    struct drm_plane_state *state,
+				    const struct spacemit_hw_device *hwdev)
+{
+	struct drm_crtc_state *crtc_state =
+		drm_atomic_get_new_crtc_state(atomic_state, state->crtc);
+	struct drm_plane_state *planes[32];
+	u32 rdma_of[32];
+	u32 used = 0, n = 0, i, j, pass;
+	struct drm_plane *p;
+
+	if (!crtc_state || hwdev->rdma_nums > 32)
+		return state->zpos;
+
+	drm_for_each_plane_mask(p, state->plane->dev, crtc_state->plane_mask) {
+		struct drm_plane_state *ps = drm_atomic_get_new_plane_state(atomic_state, p);
+		struct spacemit_plane_state *sps;
+		/* a plane not in this commit keeps the rdma it already has */
+		bool fixed = !ps;
+
+		if (!ps)
+			ps = p->state;
+		if (!ps || !ps->fb || (ps->src_w == 0 && ps->src_h == 0) || n >= ARRAY_SIZE(planes))
+			continue;
+		sps = to_spacemit_plane_state(ps);
+		if (sps->rdma_user_set || fixed) {
+			if (sps->rdma_id < hwdev->rdma_nums)
+				used |= BIT(sps->rdma_id);
+			continue;
+		}
+		/* insertion sort by zpos */
+		for (i = n; i > 0 && planes[i - 1]->zpos > ps->zpos; i--)
+			planes[i] = planes[i - 1];
+		planes[i] = ps;
+		n++;
+	}
+
+	for (i = 0; i < n; i++)
+		rdma_of[i] = RDMA_INVALID_ID;
+
+	for (pass = 0; pass < 2; pass++) {
+		for (i = 0; i < n; i++) {
+			struct drm_plane_state *ps = planes[i];
+			bool yuv = ps->fb->format->is_yuv;
+			u32 want = ps->zpos;
+
+			if (yuv != (pass == 0) || rdma_of[i] != RDMA_INVALID_ID)
+				continue;
+			if (want < hwdev->rdma_nums && !(used & BIT(want)) &&
+			    spacemit_rdma_can_read(&hwdev->rdmas[want], ps)) {
+				rdma_of[i] = want;
+			} else {
+				for (j = 0; j < hwdev->rdma_nums; j++) {
+					if (!(used & BIT(j)) &&
+					    spacemit_rdma_can_read(&hwdev->rdmas[j], ps)) {
+						rdma_of[i] = j;
+						break;
+					}
+				}
+			}
+			if (rdma_of[i] != RDMA_INVALID_ID)
+				used |= BIT(rdma_of[i]);
+		}
+	}
+
+	for (i = 0; i < n; i++)
+		if (planes[i] == state)
+			return rdma_of[i] != RDMA_INVALID_ID ? rdma_of[i] : state->zpos;
+	return state->zpos;
+}
+
 static int spacemit_plane_atomic_check(struct drm_plane *plane,
 				  struct drm_atomic_state *atomic_state)
 {
@@ -186,11 +272,11 @@ static int spacemit_plane_atomic_check(struct drm_plane *plane,
 	/* adjust rdma id */
 	if (src_w == 0 && src_h == 0)
 		cur_rdma_id = RDMA_INVALID_ID;
-	else {
-		/* In case the userspace hasn't set rdma id */
-		if (cur_rdma_id == RDMA_INVALID_ID)
-			cur_rdma_id = state->zpos;
-	}
+	else if (!cur_state->rdma_user_set)
+		/* Userspace (e.g. drm_hwcomposer) doesn't know about rdma ids */
+		cur_rdma_id = spacemit_plane_auto_rdma(atomic_state, state, hwdev);
+	else if (cur_rdma_id == RDMA_INVALID_ID)
+		cur_rdma_id = state->zpos;
 	cur_state->rdma_id = cur_rdma_id;
 
 	/* Skip solid color */
@@ -423,6 +509,7 @@ static void spacemit_plane_reset(struct drm_plane *plane)
 		__drm_atomic_helper_plane_reset(plane, &s->state);
 		s->state.zpos = hwdev->plane_nums - p->hw_pid - 1;
 		s->rdma_id = RDMA_INVALID_ID;
+		s->rdma_user_set = false;
 		s->is_offline = 1;
 		s->is_crop = false;
 		s->scaler_id = SCALER_INVALID_ID;
@@ -453,6 +540,7 @@ spacemit_plane_atomic_duplicate_state(struct drm_plane *plane)
 
 	s->is_offline = old_state->is_offline;
 	s->rdma_id = old_state->rdma_id;
+	s->rdma_user_set = old_state->rdma_user_set;
 	s->format = old_state->format;
 	s->right_image = old_state->right_image;
 	s->scaler_id = SCALER_INVALID_ID;
@@ -522,9 +610,10 @@ static int spacemit_plane_atomic_set_property(struct drm_plane *plane,
 	DRM_DEBUG("%s() name = %s, val = %llu\n",
 		  __func__, property->name, val);
 
-	if (property == p->rdma_id_property)
+	if (property == p->rdma_id_property) {
 		s->rdma_id = val;
-	else if (property == p->solid_color_property)
+		s->rdma_user_set = true;
+	} else if (property == p->solid_color_property)
 		s->solid_color = val;
 	else if (property == p->hdr_coef_property) {
 		ret = spacemit_atomic_replace_property_blob_from_id(plane->dev,
