@@ -131,6 +131,8 @@ static const struct regmap_config spacemit_p1_regmap_config = {
 static const struct mfd_cell spacemit_p1_cells[] = {
 	{ .name = "spacemit-p1-regulator", },
 	{ .name = "spacemit-p1-rtc", },
+	/* PMIC reset/poweroff (spacemit-p1-reboot.c): nothing else resets on a plain reboot. */
+	{ .name = "spacemit-p1-reboot", },
 };
 
 /* P1 (SPM8821) interrupts: status 0x91-0x97 (W1C), enable 0x98-0x9e; only the power key. */
