@@ -1338,10 +1338,10 @@ int mvx_v4l2_vidioc_reqbufs(struct file *file,
 		return ret;
 
 	if (b->count == 0) {
-		if (vport->q_set != false) {
-			vb2_queue_release(&vport->vb2_queue);
-			vport->q_set = false;
-		}
+		/* REQBUFS(0) keeps the queue initialized: re-initializing it under a poll() waiter
+		 * corrupted q->done_wq. */
+		if (vport->q_set != false)
+			ret = vb2_reqbufs(&vport->vb2_queue, b);
 	} else {
 		if (vport->q_set == false) {
 			ret = setup_vb2_queue(vport);
