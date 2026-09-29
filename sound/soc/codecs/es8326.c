@@ -37,6 +37,10 @@ struct es8326_priv {
 	u8 hpl_vol;
 	u8 hpr_vol;
 	bool jd_inverted;
+	/* ADC soft-ramp rate (ADC_RAMPRATE[3:0]) to apply at init, 0 = chip default */
+	u8 adc_ramp_rate;
+	/* ADC digital gain (ADC_SCALE, 6 dB steps 0..5) to apply at init, 0 = 0 dB */
+	u8 adc_pga_volume;
 	unsigned int sysclk;
 
 	bool calibrated;
@@ -1103,6 +1107,12 @@ static void es8326_init(struct snd_soc_component *component)
 			   ES8326_MUTE);
 
 	regmap_write(es8326->regmap, ES8326_ADC_MUTE, 0x0f);
+	if (es8326->adc_ramp_rate)
+		regmap_update_bits(es8326->regmap, ES8326_ADC_RAMPRATE, 0x0f,
+				   es8326->adc_ramp_rate);
+	if (es8326->adc_pga_volume)
+		regmap_update_bits(es8326->regmap, ES8326_ADC_SCALE, 0x77,
+				   es8326->adc_pga_volume << 4 | es8326->adc_pga_volume);
 	regmap_write(es8326->regmap, ES8326_CLK_DIV_LRCK, 0xff);
 	regmap_write(es8326->regmap, ES8326_ADC1_SRC, 0x44);
 	regmap_write(es8326->regmap, ES8326_ADC2_SRC, 0x66);
@@ -1167,6 +1177,14 @@ static int es8326_probe(struct snd_soc_component *component)
 	es8326->component = component;
 	es8326->jd_inverted = device_property_read_bool(component->dev,
 							"everest,jack-detect-inverted");
+	/* A slower ADC ramp hides the start-up pop with always-on (MEMS) mics. */
+	if (device_property_read_u8(component->dev, "everest,adc-ramp-rate",
+				    &es8326->adc_ramp_rate) == 0)
+		es8326->adc_ramp_rate &= 0x0f;
+	/* Default mic gain ("ADC PGA Volume") for boards with quiet built-in mics */
+	if (device_property_read_u8(component->dev, "everest,adc-pga-volume",
+				    &es8326->adc_pga_volume) == 0)
+		es8326->adc_pga_volume = min_t(u8, es8326->adc_pga_volume, 5);
 
 	ret = device_property_read_u8(component->dev, "everest,jack-pol", &es8326->jack_pol);
 	if (ret != 0) {
