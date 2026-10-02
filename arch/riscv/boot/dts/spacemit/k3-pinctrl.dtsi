@@ -172,4 +172,147 @@
 			power-source = <1800>;
 		};
 	};
+
+	gmac1_rgmii_0_cfg: gmac1-rgmii-0-cfg {
+		gmac1-0-pins {
+			pinmux = <K3_PADCONF(21, 1)>,	/* gmac1 rx_ctl */
+				 <K3_PADCONF(22, 1)>,	/* gmac1 rx d0 */
+				 <K3_PADCONF(23, 1)>,	/* gmac1 rx d1 */
+				 <K3_PADCONF(24, 1)>,	/* gmac1 rx_clk */
+				 <K3_PADCONF(25, 1)>,	/* gmac1 rx d2 */
+				 <K3_PADCONF(26, 1)>,	/* gmac1 rx d3 */
+				 <K3_PADCONF(27, 1)>,	/* gmac1 tx d0 */
+				 <K3_PADCONF(28, 1)>,	/* gmac1 tx d1 */
+				 <K3_PADCONF(29, 1)>,	/* gmac1 tx clk */
+				 <K3_PADCONF(30, 1)>,	/* gmac1 tx d2 */
+				 <K3_PADCONF(31, 1)>,	/* gmac1 tx d3 */
+				 <K3_PADCONF(32, 1)>,	/* gmac1 tx_ctl */
+				 <K3_PADCONF(33, 1)>,	/* gmac1 mdc */
+				 <K3_PADCONF(34, 1)>;	/* gmac1 mdio */
+
+			bias-disable;
+			drive-strength = <25>;
+			power-source = <1800>;
+		};
+	};
+
+	gmac1_phy_0_cfg: gmac1-phy-0-cfg {
+		gmac1-phy-0-pins {
+			pinmux = <K3_PADCONF(35, 1)>;	/* gmac1 int */
+
+			bias-disable;
+			drive-strength = <25>;
+			power-source = <1800>;
+		};
+	};
+
+	i2c0_0_cfg: i2c0-0-cfg {
+		i2c0-0-pins {
+			pinmux = <K3_PADCONF(0, 6)>,	/* i2c0 scl */
+				 <K3_PADCONF(1, 6)>;	/* i2c0 sda */
+
+			bias-pull-up;
+			drive-strength = <5>;
+			power-source = <3300>;
+		};
+	};
+
+	i2c2_1_cfg: i2c2-1-cfg {
+		i2c2-0-pins {
+			pinmux = <K3_PADCONF(46, 5)>,	/* i2c2 scl */
+				 <K3_PADCONF(47, 5)>;	/* i2c2 sda */
+
+			bias-pull-up;
+			drive-strength = <25>;
+			power-source = <1800>;
+		};
+	};
+
+	i2c6_1_cfg: i2c6-1-cfg {
+		i2c6-0-pins {
+			pinmux = <K3_PADCONF(7, 6)>,	/* i2c6 scl */
+				 <K3_PADCONF(8, 6)>;	/* i2c6 sda */
+
+			bias-pull-up;
+			drive-strength = <18>;
+			power-source = <3300>;
+		};
+	};
+
+	mmc1_cfg: mmc1-cfg {
+		mmc1-0-pins {
+			pinmux = <K3_PADCONF(132, 0)>,	/* mmc1 dat3 */
+				 <K3_PADCONF(133, 0)>,	/* mmc1 dat2 */
+				 <K3_PADCONF(134, 0)>,	/* mmc1 dat1 */
+				 <K3_PADCONF(135, 0)>,	/* mmc1 dat0 */
+				 <K3_PADCONF(136, 0)>;	/* mmc1 cmd */
+
+			bias-pull-up;
+			drive-strength = <8>;
+			power-source = <3300>;
+		};
+
+		mmc1-1-pins {
+			pinmux = <K3_PADCONF(137, 0)>;	/* mmc1 clk */
+
+			bias-pull-down;
+			drive-strength = <8>;
+			power-source = <3300>;
+		};
+	};
+
+	mmc1_uhs_cfg: mmc1-uhs-cfg {
+		mmc1-0-pins {
+			pinmux = <K3_PADCONF(132, 0)>,	/* mmc1 dat3 */
+				 <K3_PADCONF(133, 0)>,	/* mmc1 dat2 */
+				 <K3_PADCONF(134, 0)>,	/* mmc1 dat1 */
+				 <K3_PADCONF(135, 0)>,	/* mmc1 dat0 */
+				 <K3_PADCONF(136, 0)>;	/* mmc1 cmd */
+
+			bias-pull-up;
+			drive-strength = <7>;
+			power-source = <1800>;
+		};
+
+		mmc1-1-pins {
+			pinmux = <K3_PADCONF(137, 0)>;	/* mmc1 clk */
+
+			bias-pull-down;
+			drive-strength = <6>;
+			power-source = <1800>;
+		};
+	};
+
+	pcie3_0_cfg: pcie3-0-cfg {
+		pcie3-0-pins {
+			pinmux = <K3_PADCONF(3, 4)>,	/* pcie3 perst */
+				 <K3_PADCONF(5, 4)>;	/* pcie3 clkreq */
+
+			bias-pull-up;
+			drive-strength = <38>;
+			power-source = <3300>;
+		};
+	};
+
+	pcie4_1_cfg: pcie4-1-cfg {
+		pcie4-0-pins {
+			pinmux = <K3_PADCONF(76, 5)>,	/* pcie4 perst */
+				 <K3_PADCONF(80, 5)>,	/* pcie4 wake */
+				 <K3_PADCONF(78, 5)>;	/* pcie4 clkreq */
+
+			bias-pull-up;
+			drive-strength = <38>;
+			power-source = <3300>;
+		};
+	};
+
+	dp1_3_cfg: dp1-3-cfg {
+		dp1-0-pins {
+			pinmux = <K3_PADCONF(72, 4)>;	/* dp1 hpd */
+
+			bias-disable;
+			drive-strength = <25>;
+			power-source = <3300>;
+		};
+	};
 };
