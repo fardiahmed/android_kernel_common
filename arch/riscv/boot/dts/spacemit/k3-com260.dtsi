@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * SpacemiT K3-CoM260 module: K3, LPDDR5, UFS, RTL8211F Gigabit PHY, P1 PMIC.
+ * Based on the upstream k3-com260.dtsi and the SpacemiT linux-6.18 BSP.
+ */
+#include <dt-bindings/gpio/gpio.h>
+
+#include "k3.dtsi"
+#include "k3-pinctrl.dtsi"
+
+/ {
+	model = "SpacemiT K3 CoM260 Module";
+	compatible = "spacemit,k3-com260", "spacemit,k3";
+
+	/* 8, 16 or 32 GB: U-Boot fixes the size up */
+	memory@100000000 {
+		device_type = "memory";
+		reg = <0x1 0x00000000 0x4 0x00000000>;
+	};
+
+	reg_5v_sys: regulator-5v-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "P5V0_SYS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
+	reg_3v3_sys: regulator-3v3-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "P3V3_SYS";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		vin-supply = <&reg_5v_sys>;
+	};
+};
+
+&pinctrl {
+	gmac1_reset_cfg: gmac1-reset-cfg {
+		gmac1-reset-pins {
+			pinmux = <K3_PADCONF(37, 0)>;	/* phy reset gpio */
+
+			bias-disable;
+			drive-strength = <25>;
+			power-source = <1800>;
+		};
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_0_cfg>;
+	status = "okay";
+};
+
+&eth1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac1_rgmii_0_cfg>, <&gmac1_phy_0_cfg>, <&gmac1_reset_cfg>;
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy1>;
+	status = "okay";
+
+	mdio {
+		phy1: phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+			reset-gpios = <&gpio 1 5 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <10000>;
+		};
+	};
+};
+
+/* No eMMC on the module: UFS is the boot storage */
+&emmc {
+	status = "disabled";
+};
+
+&ufshc {
+	status = "okay";
+};
+
+/* The P1 PMIC is driven by the firmware (RPMI regulators), as in the BSP */
+&i2c8 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c8_cfg>;
+	status = "disabled";
+};
+
+&resmem {
+	cmamem: linux,cma {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x0 0x20000000>;
+		alloc-ranges = <0x1 0x0 0x1 0x0>;
+		linux,cma-default;
+	};
+};

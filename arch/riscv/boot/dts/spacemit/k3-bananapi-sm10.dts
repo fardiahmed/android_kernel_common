@@ -1,0 +1,273 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Banana Pi BPI-SM10: K3-CoM260 module on the CoM260 kit V02 reference carrier.
+ * Based on the SpacemiT linux-6.18 BSP k3_com260_kit_v02.dts.
+ */
+
+#include "k3-com260.dtsi"
+
+/ {
+	model = "Banana Pi BPI-SM10";
+	compatible = "bananapi,bpi-sm10", "spacemit,k3-com260", "spacemit,k3";
+
+	aliases {
+		ethernet0 = &eth1;
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	/* M.2 E-key W_DISABLE1#: RTL8852BE Wi-Fi on PCIe port E */
+	rfkill-pcie-wlan {
+		compatible = "rfkill-gpio";
+		label = "rfkill-pcie-wlan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&m2_wdis1_cfg>;
+		radio-type = "wlan";
+		shutdown-gpios = <&gpio 2 9 GPIO_ACTIVE_LOW>;
+	};
+
+	/* RTL8852BE Bluetooth reset (high = reset), on the USB2 host port */
+	rfkill-usb-bt {
+		compatible = "rfkill-gpio";
+		label = "rfkill-usb-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_reset_cfg>;
+		radio-type = "bluetooth";
+		shutdown-gpios = <&gpio 1 25 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pinctrl {
+	fusb301_int_cfg: fusb301-int-cfg {
+		fusb301-int-pins {
+			pinmux = <K3_PADCONF(58, 0)>;
+
+			bias-pull-up;
+			drive-strength = <25>;
+			power-source = <1800>;
+		};
+	};
+
+	m2_wdis1_cfg: m2-wdis1-cfg {
+		m2-wdis1-pins {
+			pinmux = <K3_PADCONF(73, 0)>;
+
+			bias-pull-up;
+			drive-strength = <38>;
+			power-source = <3300>;
+		};
+	};
+
+	bt_reset_cfg: bt-reset-cfg {
+		bt-reset-pins {
+			pinmux = <K3_PADCONF(57, 0)>;
+
+			bias-pull-up;
+			drive-strength = <38>;
+			power-source = <3300>;
+		};
+	};
+
+	mmc1_cd_cfg: mmc1-cd-cfg {
+		mmc1-cd-pins {
+			pinmux = <K3_PADCONF(4, 0)>;
+
+			bias-pull-up;
+			drive-strength = <8>;
+			power-source = <3300>;
+		};
+	};
+};
+
+&sdcard {
+	pinctrl-names = "default", "uhs";
+	pinctrl-0 = <&mmc1_cfg>, <&mmc1_cd_cfg>;
+	pinctrl-1 = <&mmc1_uhs_cfg>, <&mmc1_cd_cfg>;
+	bus-width = <4>;
+	cd-gpios = <&gpio 0 4 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&reg_3v3_sys>;
+	no-mmc;
+	no-sdio;
+	status = "okay";
+};
+
+/* M.2 E-key Bluetooth (USB 2.0 only) */
+&usb2_host_u2phy {
+	status = "okay";
+};
+
+&usb2_host {
+	status = "okay";
+};
+
+/* USB-C (flashing, adb): FUSB301 on i2c0 picks the role and orientation */
+&usb3_porta_u2phy {
+	status = "okay";
+};
+
+&usb3_porta_u3phy {
+	orientation-switch;
+	status = "okay";
+
+	port {
+		usb3_phy_switch: endpoint {
+			remote-endpoint = <&fusb301_sw_ep>;
+		};
+	};
+};
+
+&usb3_porta {
+	dr_mode = "otg";
+	usb-role-switch;
+	role-switch-default-mode = "peripheral";
+	status = "okay";
+};
+
+&porta_role_switch {
+	remote-endpoint = <&fusb301_ep>;
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_0_cfg>;
+	status = "okay";
+
+	tcpc@25 {
+		compatible = "onsemi,fusb301";
+		reg = <0x25>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb301_int_cfg>;
+		irq-gpios = <&gpio 1 26 GPIO_ACTIVE_LOW>;
+		wakeup-source;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			typec-power-opmode = "default";
+			pd-disable;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					fusb301_ep: endpoint {
+						remote-endpoint = <&porta_role_switch>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					fusb301_sw_ep: endpoint {
+						remote-endpoint = <&usb3_phy_switch>;
+					};
+				};
+			};
+		};
+	};
+};
+
+/* 4x USB 3.0 Type-A behind the VL817 hub (reset is done by hardware) */
+&usb3_portb_u2phy {
+	status = "okay";
+};
+
+&usb3_portb_u3phy {
+	status = "okay";
+};
+
+&usb3_portb {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	vbus-supply = <&reg_5v_sys>;
+	status = "okay";
+
+	hub_2_0: hub@1 {
+		compatible = "usb2109,2817";
+		reg = <1>;
+		peer-hub = <&hub_3_0>;
+	};
+
+	hub_3_0: hub@2 {
+		compatible = "usb2109,817";
+		reg = <2>;
+		peer-hub = <&hub_2_0>;
+	};
+};
+
+/* Board EEPROM (ONIE TLV: product name, MAC address) */
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_1_cfg>;
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		read-only;
+	};
+};
+
+/* CTF2301 fan controller at 0x4c: no Linux driver, the fan runs at its default */
+&i2c6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6_1_cfg>;
+	status = "okay";
+};
+
+/* M.2 M-key 2230 slot on PCIe port D (x1); the x4 port A slot needs two-PHY support */
+&pcie3_phy {
+	status = "okay";
+};
+
+&pcie3_port {
+	phys = <&pcie3_phy>;
+	vpcie3v3-supply = <&reg_3v3_sys>;
+};
+
+&pcie3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie3_0_cfg>;
+	vpcie3v3-supply = <&reg_3v3_sys>;
+	status = "okay";
+};
+
+/* M.2 E-key RTL8852BE Wi-Fi on PCIe port E (x1) */
+&pcie4_phy {
+	status = "okay";
+};
+
+&pcie4_port {
+	phys = <&pcie4_phy>;
+	vpcie3v3-supply = <&reg_3v3_sys>;
+};
+
+&pcie4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie4_1_cfg>;
+	vpcie3v3-supply = <&reg_3v3_sys>;
+	status = "okay";
+};
+
+/* DisplayPort 1.2 connector: DPU1 -> DP1; no eDP panel on this carrier */
+&dpu1_crtc0 {
+	memory-region = <&dpu_resv1>;
+	status = "okay";
+};
+
+&dp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dp1_3_cfg>;
+	status = "okay";
+};
+
+&display_subsystem_dp1 {
+	status = "okay";
+};
