@@ -271,3 +271,16 @@
 &display_subsystem_dp1 {
 	status = "okay";
 };
+
+/* Audio over DisplayPort, the only on-board audio output (no codec on the carrier) */
+&adma3 {
+	status = "okay";
+};
+
+&ri2s3 {
+	status = "okay";
+};
+
+&sound_card_dp1 {
+	status = "okay";
+};
