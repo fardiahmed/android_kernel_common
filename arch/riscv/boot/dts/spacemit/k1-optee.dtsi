@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * OP-TEE in an OpenSBI trusted domain (bootloader/spacemit/optee_os), reached over SBI MPXY/RPMI:
+ * one OP-TEE channel per hart, channel id = hart id. The firmware side is in pi-u-boot k1-x-optee.dtsi.
+ */
+
+/ {
+	mpxy_mbox: sbi-mpxy-mbox {
+		compatible = "riscv,sbi-mpxy-mbox";
+		#mbox-cells = <2>;
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "mpxy";
+			mboxes = <&mpxy_mbox 0x0 0x0>,
+				 <&mpxy_mbox 0x1 0x0>,
+				 <&mpxy_mbox 0x2 0x0>,
+				 <&mpxy_mbox 0x3 0x0>,
+				 <&mpxy_mbox 0x4 0x0>,
+				 <&mpxy_mbox 0x5 0x0>,
+				 <&mpxy_mbox 0x6 0x0>,
+				 <&mpxy_mbox 0x7 0x0>;
+		};
+	};
+};
+
+&cpu_0 {
+	rpmi_optee_0 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x0>;
+	};
+};
+
+&cpu_1 {
+	rpmi_optee_1 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x1>;
+	};
+};
+
+&cpu_2 {
+	rpmi_optee_2 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x2>;
+	};
+};
+
+&cpu_3 {
+	rpmi_optee_3 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x3>;
+	};
+};
+
+&cpu_4 {
+	rpmi_optee_4 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x4>;
+	};
+};
+
+&cpu_5 {
+	rpmi_optee_5 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x5>;
+	};
+};
+
+&cpu_6 {
+	rpmi_optee_6 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x6>;
+	};
+};
+
+&cpu_7 {
+	rpmi_optee_7 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x7>;
+	};
+};

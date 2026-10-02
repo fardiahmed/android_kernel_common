@@ -4,6 +4,7 @@
  */
 
 #include "k1.dtsi"
+#include "k1-optee.dtsi"
 #include "k1-pinctrl.dtsi"
 #include <dt-bindings/usb/spacemit-usb.h>
 
