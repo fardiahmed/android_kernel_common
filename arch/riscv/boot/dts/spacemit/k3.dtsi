@@ -1727,6 +1727,47 @@
 		 * Only the USB2 phy is used on the Pico-ITX; the board file keeps
 		 * the SS phy disabled and caps the controller at high-speed.
 		 */
+		usb3_portb_u2phy: phy@81500000 {
+			compatible = "spacemit,k3-usb2-phy";
+			reg = <0x0 0x81500000 0x0 0x200>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		/* Combo PHY shared with PCIe PHY2 (bit 2 selects USB) */
+		usb3_portb_u3phy: phy@81f00000 {
+			compatible = "spacemit,k3-usb3-phy";
+			reg = <0x0 0x81f00000 0x0 0x200>;
+			clocks = <&syscon_apmu CLK_APMU_USB3_PORTB_BUS>;
+			spacemit,syscon-apmu = <&syscon_apmu>;
+			spacemit,syscon-apb-spare = <&pll>;
+			combo-usb-bit = <2>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_portb: usb3@81400000 {
+			compatible = "spacemit,k1-dwc3";
+			reg = <0x0 0x81400000 0x0 0x10000>;
+			interrupts = <125 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&syscon_apmu CLK_APMU_USB3_PORTB_BUS>;
+			resets = <&syscon_apmu RESET_APMU_USB3_B_AHB>,
+				 <&syscon_apmu RESET_APMU_USB3_B_VCC>,
+				 <&syscon_apmu RESET_APMU_USB3_B_PHY>;
+			reset-names = "ahb", "vcc", "phy";
+			phys = <&usb3_portb_u2phy>, <&usb3_portb_u3phy>;
+			phy-names = "usb2-phy", "usb3-phy";
+			phy_type = "utmi";
+			snps,dis_enblslpm_quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis_u3_susphy_quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,parkmode-disable-ss-quirk;
+			dr_mode = "host";
+			status = "disabled";
+		};
+
 		usb3_portc_u2phy: phy@81800000 {
 			compatible = "spacemit,k3-usb2-phy";
 			reg = <0x0 0x81800000 0x0 0x200>;
@@ -1877,6 +1918,60 @@
 			status = "disabled";
 
 			pcie4_port: pcie@0 {
+				device_type = "pci";
+				compatible = "pciclass,0604";
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				bus-range = <0x01 0xff>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
+		};
+
+		/* PCIe PHY4 shares its registers with the USB3 port D combo PHY */
+		pcie3_phy: phy-pcie@82100000 {
+			compatible = "spacemit,k3-pcie-phy";
+			reg = <0x0 0x82100000 0x0 0x1000>;
+			spacemit,syscon-apb-spare = <&pll>;
+			num-lanes = <1>;
+			spacemit,phy-id = <4>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		/* Port D (pcie3, domain 3, x1); APMU control at 0x1e0 */
+		pcie3: pcie@80c00000 {
+			device_type = "pci";
+			compatible = "spacemit,k3-pcie";
+			reg = <0x0 0x80c00000 0x0 0x00001000>,   /* dbi */
+			      <0x0 0x80f00000 0x0 0x00003f20>,   /* atu */
+			      <0x12 0x80000000 0x0 0x00010000>,  /* config */
+			      <0x0 0x82a00000 0x0 0x00001000>,   /* link */
+			      <0x0 0x80d00000 0x0 0x00001000>;   /* dbi2 */
+			reg-names = "dbi", "atu", "config", "link", "dbi2";
+			linux,pci-domain = <3>;
+			bus-range = <0x00 0xff>;
+			max-link-speed = <3>;
+			num-lanes = <1>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x00000000 0x12 0x80010000 0x0 0x00100000>,
+				 <0x02000000 0x0 0x80110000 0x12 0x80110000 0x0 0x3fef0000>,
+				 <0x43000000 0x14 0x00000000 0x14 0x00000000 0x1 0x00000000>;
+			interrupt-parent = <&saplic>;
+			msi-parent = <&simsic>;
+			clocks = <&syscon_apmu CLK_APMU_PCIE_PORTD_BUS>,
+				 <&syscon_apmu CLK_APMU_PCIE_PORTD_MSTE>,
+				 <&syscon_apmu CLK_APMU_PCIE_PORTD_SLV>;
+			clock-names = "dbi", "mstr", "slv";
+			resets = <&syscon_apmu RESET_APMU_PCIE_D_DBI>,
+				 <&syscon_apmu RESET_APMU_PCIE_D_MASTER>,
+				 <&syscon_apmu RESET_APMU_PCIE_D_SLAVE>;
+			reset-names = "dbi", "mstr", "slv";
+			spacemit,apmu = <&syscon_apmu 0x1e0>;
+			status = "disabled";
+
+			pcie3_port: pcie@0 {
 				device_type = "pci";
 				compatible = "pciclass,0604";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
