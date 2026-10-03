@@ -32,7 +32,10 @@
 #define RTC_TIME		0x0d	/* Offset of the seconds register */
 
 #define RTC_CTRL		0x1d
+#define RTC_CRYSTAL_EN	BIT(0)
+#define RTC_OUT_32K_EN	BIT(1)
 #define RTC_EN		BIT(2)
+#define RTC_CLK_SEL	BIT(3)
 
 /* Number of attempts to read a consistent time stamp before giving up */
 #define RTC_READ_TRIES		20	/* At least 1 */
@@ -136,6 +139,11 @@ static int p1_rtc_probe(struct platform_device *pdev)
 	p1->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!p1->regmap)
 		return dev_err_probe(dev, -ENODEV, "failed to get regmap\n");
+
+	/* Count from the 32.768 kHz crystal: the reset value selects another clock, ~5% slow */
+	if (regmap_set_bits(p1->regmap, RTC_CTRL,
+			    RTC_CRYSTAL_EN | RTC_OUT_32K_EN | RTC_CLK_SEL))
+		return dev_err_probe(dev, -EIO, "failed to select the RTC clock\n");
 
 	rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(rtc))
