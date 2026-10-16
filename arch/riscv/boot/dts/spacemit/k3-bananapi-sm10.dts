@@ -284,3 +284,64 @@
 &sound_card_dp1 {
 	status = "okay";
 };
+
+/*
+ * WM8960 Audio HAT (Waveshare, 40-pin): the first real codec on this carrier
+ * (speaker/headphone/mic). SCAFFOLD on i2s1 (sspa1) + I2C6, build-validated but
+ * NOT yet matched to the physical header. Reconcile on the board:
+ *   - DAI: the SM10 header I2S pins (12/35/38/40) are labelled I2S0, i.e. sspa0;
+ *     k3.dtsi has no i2s0/sspa0 node, so the real wiring likely needs one added
+ *     and this block re-pointed from &i2s1 to it.
+ *   - I2C: pins 3/5 (SDA/SCL) -> confirm which K3 bus (0x1a is the WM8960 addr).
+ *   - Clock: the HAT has its own crystal (no MCLK from the SoC), so mclk-fs/PLL
+ *     may be wrong; confirm WM8960 master/slave and drop mclk-fs if self-clocked.
+ * Skip pin 11 (HAT button = UART1_RTS on SM10). The output-mixer/input routes
+ * default off and are enabled at boot by init.wm8960.rc (device/spacemit/k3/audio).
+ */
+&i2s1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sspa1_1_cfg>;
+	status = "okay";
+};
+
+&i2c6 {
+	wm8960: wm8960@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+		#sound-dai-cells = <0>;
+		wlf,shared-lrclk;
+	};
+};
+
+&sound_card1 {
+	status = "okay";
+	simple-audio-card,name = "snd-wm8960";
+	simple-audio-card,mclk-fs = <256>;
+	simple-audio-card,widgets =
+		"Headphone", "Headphone Jack",
+		"Speaker", "Speaker",
+		"Microphone", "Mic Jack";
+	simple-audio-card,routing =
+		"Headphone Jack", "HP_L",
+		"Headphone Jack", "HP_R",
+		"Speaker", "SPK_LP",
+		"Speaker", "SPK_LN",
+		"Speaker", "SPK_RP",
+		"Speaker", "SPK_RN",
+		"LINPUT1", "Mic Jack",
+		"RINPUT1", "Mic Jack";
+
+	simple-audio-card,dai-link@0 {
+		format = "i2s";
+		frame-master = <&wm8960_cpu>;
+		bitclock-master = <&wm8960_cpu>;
+
+		wm8960_cpu: cpu {
+			sound-dai = <&i2s1>;
+		};
+
+		codec {
+			sound-dai = <&wm8960>;
+		};
+	};
+};
